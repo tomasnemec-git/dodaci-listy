@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dodací list · Tomáš Němec
 // @namespace    https://pokorinek.cz/
-// @version      3.0.2
+// @version      3.0.3
 // @description  Zvýrazňuje množství nad 1 ks a tiskne čitelný dodací list (dopravce, velké názvy, kódy, množství, adresa) s náhledy produktů. Funguje v seznamu objednávek i v detailu objednávky.
 // @author       Tomáš Němec
 // @match        https://pokorinek.cz/admin/*
@@ -928,7 +928,7 @@
         box.id = 'kdl-box';
         box.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:99999;display:flex;align-items:center;gap:10px;font:12px Arial,sans-serif;';
 
-        btn = makeButton({ bg: '#1a5aa6', bgPressed: '#154a8a', fg: '#fff', border: '2px solid #e53935' }, onClick);
+        btn = makeButton({ bg: '#1a5aa6', bgPressed: '#154a8a', fg: '#fff', border: '3px solid #ff1a1a' }, onClick);
         box.appendChild(btn);
         document.body.appendChild(box);
         setBtn(LABEL, false);
@@ -946,7 +946,7 @@
         if (!box || document.getElementById('kdl-labels')) return;
         if (!document.querySelector(STITKY_SEL)) return;   // jen tam, kde Shoptet tisk štítků nabízí
 
-        var lb = makeButton({ bg: '#1a5aa6', bgPressed: '#154a8a', fg: '#fff', border: '2px solid #e53935' }, function () {
+        var lb = makeButton({ bg: '#1a5aa6', bgPressed: '#154a8a', fg: '#fff', border: '3px solid #ff1a1a' }, function () {
             var link = document.querySelector(STITKY_SEL);
             var info = function (t) {
                 morphLabel(lb, '<span>' + esc(t) + '</span>');
