@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dodací list · Tomáš Němec
 // @namespace    https://pokorinek.cz/
-// @version      3.1.2
+// @version      3.2.0
 // @description  Zvýrazňuje množství nad 1 ks a tiskne čitelný dodací list (dopravce, velké názvy, kódy, množství, adresa) s náhledy produktů. Funguje v seznamu objednávek i v detailu objednávky.
 // @author       Tomáš Němec
 // @match        https://pokorinek.cz/admin/*
@@ -72,7 +72,7 @@
     // Nastavení přepínaná v okénku u ikonky (ukládá se v tomto prohlížeči)
     var LS_SETTINGS = 'korinekDL.nastaveni';
     function getSet(k) {
-        var d = { zapnuto: true, konfety: EFEKT_KONFETY, zvyrazneni: ZVYRAZNIT_MNOZSTVI, zvuk: ZVUK };
+        var d = { zapnuto: true, konfety: EFEKT_KONFETY, zvyrazneni: ZVYRAZNIT_MNOZSTVI, zvuk: ZVUK, snih: SNIH };
         try {
             var st = JSON.parse(localStorage.getItem(LS_SETTINGS) || '{}');
             return k in st ? !!st[k] : d[k];
@@ -775,6 +775,102 @@
     }
 
     // ------------------------------------------------------------------
+    // Sníh: po načtení stránky padají vločky (10 s), pak plynule zmizí
+    // ------------------------------------------------------------------
+    var SNIH = true;              // false = bez sněhu (výchozí stav přepínače)
+    var SNIH_DELKA_MS = 10000;
+
+    function snow() {
+        if (!getSet('zapnuto') || !getSet('snih')) return;
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        var dpr = window.devicePixelRatio || 1;
+        var canvas = document.createElement('canvas');
+        canvas.id = 'kdl-snow';
+        canvas.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;pointer-events:none;z-index:99998;';
+        document.body.appendChild(canvas);
+        var ctx = canvas.getContext('2d');
+        var W, H;
+        function resize() {
+            W = window.innerWidth; H = window.innerHeight;
+            canvas.width = W * dpr; canvas.height = H * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // vločky jsou světle modré s bílým středem, aby byly vidět i na bílé administraci
+        var flakes = [];
+        function spawn(y) {
+            var r = 2 + Math.random() * 3.6;
+            flakes.push({
+                x: Math.random() * W, y: y,
+                r: r,
+                vy: 0.5 + r * 0.22 + Math.random() * 0.4,        // větší padají rychleji
+                sway: Math.random() * Math.PI * 2,
+                swaySpeed: 0.01 + Math.random() * 0.02,
+                swayAmp: 0.3 + Math.random() * 0.8,
+                star: r > 3.6,                                      // ty největší jsou hvězdičky
+                rot: Math.random() * Math.PI
+            });
+        }
+        var COUNT = Math.round(Math.min(220, W * H / 5500));
+        for (var i = 0; i < COUNT; i++) spawn(-Math.random() * H);   // začínají nad obrazovkou
+
+        function drawStar(f) {
+            ctx.save();
+            ctx.translate(f.x, f.y);
+            ctx.rotate(f.rot);
+            ctx.strokeStyle = 'rgba(120,170,235,0.95)';
+            ctx.lineWidth = 1.3;
+            ctx.lineCap = 'round';
+            for (var k = 0; k < 6; k++) {
+                ctx.rotate(Math.PI / 3);
+                ctx.beginPath();
+                ctx.moveTo(0, 0); ctx.lineTo(0, f.r * 1.9);
+                ctx.moveTo(0, f.r * 1.1); ctx.lineTo(f.r * 0.5, f.r * 1.5);
+                ctx.moveTo(0, f.r * 1.1); ctx.lineTo(-f.r * 0.5, f.r * 1.5);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        var start = performance.now();
+        (function frame(now) {
+            var t = now - start;
+            var alpha = t < SNIH_DELKA_MS - 2000 ? 1 : Math.max(0, (SNIH_DELKA_MS - t) / 2000);
+            ctx.clearRect(0, 0, W, H);
+            ctx.globalAlpha = alpha;
+            flakes.forEach(function (f) {
+                f.sway += f.swaySpeed;
+                f.y += f.vy;
+                f.x += Math.sin(f.sway) * f.swayAmp;
+                f.rot += 0.005;
+                if (f.y - f.r * 2 > H && t < SNIH_DELKA_MS - 3000) {   // nová vločka nahoře, dokud nekončíme
+                    f.y = -10; f.x = Math.random() * W;
+                }
+                if (f.star) {
+                    drawStar(f);
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(150,190,240,0.85)';
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(f.x - f.r * 0.25, f.y - f.r * 0.25, f.r * 0.45, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                    ctx.fill();
+                }
+            });
+            if (t < SNIH_DELKA_MS && getSet('snih') && getSet('zapnuto')) {
+                requestAnimationFrame(frame);
+            } else {
+                window.removeEventListener('resize', resize);
+                canvas.remove();
+            }
+        })(start);
+    }
+
+    // ------------------------------------------------------------------
     // Efekt: z tlačítka se rozletí konfety
     // ------------------------------------------------------------------
     var EFEKT_KONFETY = true;   // false = bez konfet
@@ -1304,7 +1400,7 @@
     }
 
     function toggleHtml(key, on) {
-        var names = { zapnuto: 'Zapnout nebo vypnout skript', zvyrazneni: 'Zvýraznění 2+ ks', konfety: 'Konfety', zvuk: 'Zvuk' };
+        var names = { zapnuto: 'Zapnout nebo vypnout skript', zvyrazneni: 'Zvýraznění 2+ ks', konfety: 'Konfety', zvuk: 'Zvuk', snih: 'Sníh' };
         return '<button type="button" data-kdl-toggle="' + key + '" aria-pressed="' + on + '" ' +
             'aria-label="' + esc(names[key] || key) + '" title="' + (on ? 'Vypnout' : 'Zapnout') + '" ' +
             'style="position:relative;width:34px;height:20px;border:0;border-radius:10px;cursor:pointer;padding:0;flex:0 0 auto;' +
@@ -1367,6 +1463,7 @@
                 feat('zvyrazneni', 'Zvýraznění 2+ ks v administraci') +
                 feat('konfety', 'Konfety') +
                 feat('zvuk', 'Zvuk') +
+                feat('snih', 'Sníh po načtení stránky') +
             '</div>' +
             '<div style="margin-top:6px;padding-top:8px;border-top:1px solid #333a44;color:#9aa4b2;">' +
                 'Tip: v dialogu tisku nechte Měřítko a Okraje na „Výchozí“.' +
@@ -1409,6 +1506,7 @@
                 box.innerHTML = infoHtml();
                 if (key !== 'zapnuto' || getSet('zapnuto')) {
                     if (key === 'zvuk' && getSet('zvuk')) playSound('klik');   // ukázka zvuku po zapnutí
+                    if (key === 'snih' && getSet('snih') && !document.getElementById('kdl-snow')) snow();   // ukázka sněhu
                     if (getSet('zapnuto') && getSet('konfety') && (key === 'zapnuto' || key === 'konfety')) {
                         confetti(document.querySelector('#kdl-badge img') || t, 'shora');
                     }
@@ -1444,6 +1542,7 @@
     addButton();
     highlightQuantities();
     addBadge();
+    snow();
     var pending = false;
     new MutationObserver(function () {
         if (pending) return;
