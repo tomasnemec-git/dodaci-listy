@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dodací list · Tomáš Němec
 // @namespace    https://pokorinek.cz/
-// @version      3.1.0
+// @version      3.1.1
 // @description  Zvýrazňuje množství nad 1 ks a tiskne čitelný dodací list (dopravce, velké názvy, kódy, množství, adresa) s náhledy produktů. Funguje v seznamu objednávek i v detailu objednávky.
 // @author       Tomáš Němec
 // @match        https://pokorinek.cz/admin/*
@@ -592,7 +592,9 @@
         // šířka bez vlivu zvětšení při najetí myší (transform), jinak by na konci poskočila
         var w = function () { return parseFloat(getComputedStyle(b).width); };
         var from = w();
-        b.style.transition = 'none';
+        // vypnout jen animaci šířky (kvůli měření); posun a stín po stisku musí doběhnout plynule,
+        // jinak by tlačítko poskočilo
+        b.style.transition = BTN_TRANSITION_BEZ_SIRKY;
         b.style.width = '';
         b.innerHTML = html;
         var to = w();
@@ -885,7 +887,8 @@
             });
     }
 
-    var BTN_TRANSITION = 'transform .09s ease-out, box-shadow .09s ease-out, background-color .08s ease-out, filter .12s ease, width .3s ease, opacity .2s ease';
+    var BTN_TRANSITION_BEZ_SIRKY = 'transform .09s ease-out, box-shadow .09s ease-out, background-color .08s ease-out, filter .12s ease, opacity .2s ease';
+    var BTN_TRANSITION = BTN_TRANSITION_BEZ_SIRKY + ', width .3s ease';
 
     // tlačítko s efektem zvětšení při najetí myší a promáčknutí při stisku
     // 3D tlačítko: tmavší spodní hrana, při stisku tlačítko „zajede“ dolů
