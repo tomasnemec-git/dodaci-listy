@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dodací list · Tomáš Němec
 // @namespace    https://pokorinek.cz/
-// @version      3.1.1
+// @version      3.1.2
 // @description  Zvýrazňuje množství nad 1 ks a tiskne čitelný dodací list (dopravce, velké názvy, kódy, množství, adresa) s náhledy produktů. Funguje v seznamu objednávek i v detailu objednávky.
 // @author       Tomáš Němec
 // @match        https://pokorinek.cz/admin/*
@@ -854,20 +854,41 @@
         })(start);
     }
 
+    // Hláška „Nejdřív zaškrtněte objednávky“ je vždy jen v jednom tlačítku najednou.
+    // Kliknutí na druhé tlačítko ji tam „přestěhuje“: první se vrátí na svůj nápis
+    // a druhé se zároveň roztáhne (jeden společný pohyb místo několika za sebou).
+    var noSel = { btn: null, restore: null, timer: null };
+
+    function showNoSelection(button, restoreFn) {
+        tears(button);
+        playSound('bwomp');
+        if (noSel.btn !== button || !button.isConnected) {
+            if (noSel.btn && noSel.restore) noSel.restore();   // hláška z prvního tlačítka zmizí
+            noSel.btn = button;
+            noSel.restore = restoreFn;
+            morphLabel(button, '<span>Nejdřív zaškrtněte objednávky</span>');
+        }
+        clearTimeout(noSel.timer);
+        noSel.timer = setTimeout(clearNoSelection, 2500);
+    }
+
+    function clearNoSelection() {
+        clearTimeout(noSel.timer);
+        var r = noSel.restore;
+        noSel.btn = null; noSel.restore = null; noSel.timer = null;
+        if (r) r();
+    }
+
     function onClick() {
         if (!printerName() && !askName()) return;
         var jobs = isDetailPage() ? jobsFromDetail() : jobsFromList();
         if (!jobs.length) {
-            setBtn('Nejdřív zaškrtněte objednávky', false);
-            tears(btn);
-            playSound('bwomp');
-            clearTimeout(btn._msgT);   // opakované kliknutí: hláška zůstane celé 2,5 s od posledního
-            btn._msgT = setTimeout(function () { setBtn(LABEL, false); }, 2500);
+            showNoSelection(btn, function () { setBtn(LABEL, false); });
             return;
         }
+        if (noSel.btn) clearNoSelection();   // hlášku v druhém tlačítku hned vrátit
         confetti(btn);
         playSound('pop');
-        clearTimeout(btn._msgT);
         setProgress(0, jobs.length);
         loadAll(jobs, function (d, n) { setProgress(d, n); })
             .then(function (orders) {
@@ -1014,8 +1035,12 @@
                 lb._msgT = setTimeout(function () { morphLabel(lb, STITKY_LABEL); }, 2500);
             };
             if (!link) { info('Štítky tu nejsou k dispozici'); return; }
-            if (isListPage() && !jobsFromList().length) { info('Nejdřív zaškrtněte objednávky'); tears(lb); playSound('bwomp'); return; }
+            if (isListPage() && !jobsFromList().length) {
+                showNoSelection(lb, function () { morphLabel(lb, STITKY_LABEL); });
+                return;
+            }
             clearTimeout(lb._msgT);
+            if (noSel.btn) clearNoSelection();
             morphLabel(lb, STITKY_LABEL);
             confetti(lb);
             playSound('tada');
