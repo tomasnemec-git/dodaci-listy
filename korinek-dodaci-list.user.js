@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dodací list · Tomáš Němec
 // @namespace    https://pokorinek.cz/
-// @version      3.2.1
+// @version      3.2.2
 // @description  Zvýrazňuje množství nad 1 ks a tiskne čitelný dodací list (dopravce, velké názvy, kódy, množství, adresa) s náhledy produktů. Funguje v seznamu objednávek i v detailu objednávky.
 // @author       Tomáš Němec
 // @match        https://pokorinek.cz/admin/*
@@ -775,13 +775,14 @@
     }
 
     // ------------------------------------------------------------------
-    // Sníh: po načtení stránky padají vločky (6 s), pak plynule zmizí
+    // Sníh: po načtení detailu objednávky padají vločky (6 s), pak plynule zmizí
     // ------------------------------------------------------------------
     var SNIH = true;              // false = bez sněhu (výchozí stav přepínače)
     var SNIH_DELKA_MS = 6000;
 
     function snow() {
         if (!getSet('zapnuto') || !getSet('snih')) return;
+        if (!isDetailPage()) return;   // sněží jen v detailu objednávky
         if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         var dpr = window.devicePixelRatio || 1;
         var canvas = document.createElement('canvas');
@@ -1463,7 +1464,7 @@
                 feat('zvyrazneni', 'Zvýraznění 2+ ks v administraci') +
                 feat('konfety', 'Konfety') +
                 feat('zvuk', 'Zvuk') +
-                feat('snih', 'Sníh po načtení stránky') +
+                feat('snih', 'Sníh v detailu objednávky') +
             '</div>' +
             '<div style="margin-top:6px;padding-top:8px;border-top:1px solid #333a44;color:#9aa4b2;">' +
                 'Tip: v dialogu tisku nechte Měřítko a Okraje na „Výchozí“.' +
