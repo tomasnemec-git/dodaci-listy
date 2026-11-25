@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dodací list · Tomáš Němec
 // @namespace    https://pokorinek.cz/
-// @version      3.0.6
+// @version      3.0.7
 // @description  Zvýrazňuje množství nad 1 ks a tiskne čitelný dodací list (dopravce, velké názvy, kódy, množství, adresa) s náhledy produktů. Funguje v seznamu objednávek i v detailu objednávky.
 // @author       Tomáš Němec
 // @match        https://pokorinek.cz/admin/*
@@ -929,7 +929,7 @@
         // pozici dopočítá positionBox() podle chatu Shoptetu (modrá bublina vpravo dole)
         box.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:99999;display:flex;align-items:center;gap:10px;font:12px Arial,sans-serif;';
 
-        btn = makeButton({ bg: '#1a5aa6', bgPressed: '#154a8a', fg: '#fff', border: '3px solid #ff1a1a' }, onClick);
+        btn = makeButton({ bg: '#1a5aa6', bgPressed: '#154a8a', fg: '#fff' }, onClick);
         box.appendChild(btn);
         document.body.appendChild(box);
         setBtn(LABEL, false);
@@ -940,14 +940,14 @@
     // Tlačítka se postaví vlevo vedle chatu Shoptetu a svisle na střed s jeho bublinou.
     // Když chat na stránce není, zůstanou v pravém dolním rohu.
     function findChatBubble(box) {
-        // 1) chatbot Shoptetu (Feedbot): bublina = nejbližší pevně umístěný předek jeho hlavičky
+        // 1) chatbot Shoptetu (Feedbot): viditelná modrá bublina je přímo jeho hlavička
+        //    (obal kolem ní může být větší, a pak by střed nesedel)
         var fb = document.querySelector('.feedbot-header');
-        for (var f = fb; f && f !== document.body; f = f.parentElement) {
-            if (getComputedStyle(f).position === 'fixed') {
-                var fr = f.getBoundingClientRect();
-                if (fr.width > 0 && fr.width < 220 && fr.height > 0 && fr.height < 220) return fr;
-                if (fr.width >= 220 || fr.height >= 220) return 'keep';   // chat je otevřený
-                break;
+        if (fb) {
+            var fr = fb.getBoundingClientRect();
+            if (fr.width > 0 && fr.height > 0) {
+                if (fr.width < 220 && fr.height < 220) return fr;
+                return 'keep';   // chat je otevřený: tlačítka nechat, kde jsou
             }
         }
         // 2) záloha: cokoli pevně umístěného v pravém dolním rohu
@@ -993,7 +993,7 @@
         if (!box || document.getElementById('kdl-labels')) return;
         if (!document.querySelector(STITKY_SEL)) return;   // jen tam, kde Shoptet tisk štítků nabízí
 
-        var lb = makeButton({ bg: '#1a5aa6', bgPressed: '#154a8a', fg: '#fff', border: '3px solid #ff1a1a' }, function () {
+        var lb = makeButton({ bg: '#1a5aa6', bgPressed: '#154a8a', fg: '#fff' }, function () {
             var link = document.querySelector(STITKY_SEL);
             var info = function (t) {
                 morphLabel(lb, '<span>' + esc(t) + '</span>');
