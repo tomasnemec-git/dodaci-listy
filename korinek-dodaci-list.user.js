@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dodací list · Tomáš Němec
 // @namespace    https://pokorinek.cz/
-// @version      3.0.7
+// @version      3.1.0
 // @description  Zvýrazňuje množství nad 1 ks a tiskne čitelný dodací list (dopravce, velké názvy, kódy, množství, adresa) s náhledy produktů. Funguje v seznamu objednávek i v detailu objednávky.
 // @author       Tomáš Němec
 // @match        https://pokorinek.cz/admin/*
@@ -885,14 +885,21 @@
             });
     }
 
-    var BTN_TRANSITION = 'transform .12s ease-out, box-shadow .12s ease-out, background-color .08s ease-out, width .3s ease, opacity .2s ease';
+    var BTN_TRANSITION = 'transform .09s ease-out, box-shadow .09s ease-out, background-color .08s ease-out, filter .12s ease, width .3s ease, opacity .2s ease';
 
     // tlačítko s efektem zvětšení při najetí myší a promáčknutí při stisku
+    // 3D tlačítko: tmavší spodní hrana, při stisku tlačítko „zajede“ dolů
+    var HRANA_PX = 5;
+
     function makeButton(colors, onClickFn) {
+        var edge = colors.edge || '#0e3a6e';
+        var SHADOW_REST = '0 ' + HRANA_PX + 'px 0 ' + edge + ', 0 ' + (HRANA_PX + 2) + 'px 12px rgba(0,0,0,.25)';
+        var SHADOW_HOVER = '0 ' + HRANA_PX + 'px 0 ' + edge + ', 0 ' + (HRANA_PX + 4) + 'px 16px rgba(0,0,0,.3)';
+        var SHADOW_DOWN = '0 0 0 ' + edge + ', 0 2px 4px rgba(0,0,0,.25)';
         var b = document.createElement('button');
         b.type = 'button';
-        b.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:6px;cursor:pointer;' +
-            'font:bold 14px Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);' +
+        b.style.cssText = 'display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:8px;cursor:pointer;' +
+            'font:bold 14px Arial,sans-serif;box-shadow:' + SHADOW_REST + ';' +
             'background:' + colors.bg + ';color:' + colors.fg + ';border:' + (colors.border || '0') + ';' +
             'white-space:nowrap;overflow:hidden;justify-content:center;transition:' + BTN_TRANSITION + ';';
         b.addEventListener('click', onClickFn);
@@ -900,14 +907,16 @@
         function rest() {
             var up = hovered && !b.disabled;
             b.style.transform = up ? 'scale(1.06)' : '';
-            b.style.boxShadow = up ? '0 4px 12px rgba(0,0,0,.35)' : '0 2px 8px rgba(0,0,0,.3)';
+            b.style.boxShadow = up ? SHADOW_HOVER : SHADOW_REST;
             b.style.backgroundColor = colors.bg;
+            b.style.filter = up ? 'brightness(1.08)' : '';
         }
         function press() {
             if (b.disabled) return;
-            b.style.transform = 'translateY(2px) scale(0.95)';
-            b.style.boxShadow = '0 1px 2px rgba(0,0,0,.35)';
+            b.style.transform = 'translateY(' + HRANA_PX + 'px)';
+            b.style.boxShadow = SHADOW_DOWN;
             b.style.backgroundColor = colors.bgPressed;
+            b.style.filter = '';
         }
         b.addEventListener('pointerenter', function () { hovered = true; rest(); });
         b.addEventListener('pointerleave', function () { hovered = false; rest(); });
@@ -975,7 +984,8 @@
         var right = 20, bottom = 20;
         if (r) {
             right = Math.round(window.innerWidth - r.left + 14);
-            bottom = Math.round(window.innerHeight - (r.top + r.height / 2) - box.offsetHeight / 2);
+            // + polovina 3D hrany: střed celého viditelného tlačítka i s hranou na střed bubliny
+            bottom = Math.round(window.innerHeight - (r.top + r.height / 2) - box.offsetHeight / 2 + HRANA_PX / 2);
         }
         if (box.style.right !== right + 'px') box.style.right = right + 'px';
         if (box.style.bottom !== bottom + 'px') box.style.bottom = bottom + 'px';
