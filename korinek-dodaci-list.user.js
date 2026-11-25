@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dodací list · Tomáš Němec
 // @namespace    https://pokorinek.cz/
-// @version      3.0.4
+// @version      3.0.6
 // @description  Zvýrazňuje množství nad 1 ks a tiskne čitelný dodací list (dopravce, velké názvy, kódy, množství, adresa) s náhledy produktů. Funguje v seznamu objednávek i v detailu objednávky.
 // @author       Tomáš Němec
 // @match        https://pokorinek.cz/admin/*
@@ -926,15 +926,61 @@
 
         var box = document.createElement('div');
         box.id = 'kdl-box';
-        // vpravo dole je chat Shoptetu (modrá bublina), tlačítka jsou proto vlevo od něj
-        box.style.cssText = 'position:fixed;right:96px;bottom:20px;z-index:99999;display:flex;align-items:center;gap:10px;font:12px Arial,sans-serif;';
+        // pozici dopočítá positionBox() podle chatu Shoptetu (modrá bublina vpravo dole)
+        box.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:99999;display:flex;align-items:center;gap:10px;font:12px Arial,sans-serif;';
 
         btn = makeButton({ bg: '#1a5aa6', bgPressed: '#154a8a', fg: '#fff', border: '3px solid #ff1a1a' }, onClick);
         box.appendChild(btn);
         document.body.appendChild(box);
         setBtn(LABEL, false);
         addLabelsButton();
+        positionBox();
     }
+
+    // Tlačítka se postaví vlevo vedle chatu Shoptetu a svisle na střed s jeho bublinou.
+    // Když chat na stránce není, zůstanou v pravém dolním rohu.
+    function findChatBubble(box) {
+        // 1) chatbot Shoptetu (Feedbot): bublina = nejbližší pevně umístěný předek jeho hlavičky
+        var fb = document.querySelector('.feedbot-header');
+        for (var f = fb; f && f !== document.body; f = f.parentElement) {
+            if (getComputedStyle(f).position === 'fixed') {
+                var fr = f.getBoundingClientRect();
+                if (fr.width > 0 && fr.width < 220 && fr.height > 0 && fr.height < 220) return fr;
+                if (fr.width >= 220 || fr.height >= 220) return 'keep';   // chat je otevřený
+                break;
+            }
+        }
+        // 2) záloha: cokoli pevně umístěného v pravém dolním rohu
+        var x = window.innerWidth - 45, y = window.innerHeight - 45;
+        var prev = box.style.pointerEvents;
+        box.style.pointerEvents = 'none';            // aby sonda nenarazila na naše tlačítka
+        var el = document.elementFromPoint(x, y);
+        box.style.pointerEvents = prev;
+        for (var i = 0; el && i < 6; i++, el = el.parentElement) {
+            if (el === document.body || el === document.documentElement) return null;
+            if (getComputedStyle(el).position === 'fixed') {
+                var r = el.getBoundingClientRect();
+                if (r.width > 20 && r.width < 220 && r.height > 20 && r.height < 220) return r;
+                return 'keep';   // otevřené okno chatu apod.: tlačítka nechat, kde jsou
+            }
+        }
+        return null;
+    }
+
+    function positionBox() {
+        var box = document.getElementById('kdl-box');
+        if (!box) return;
+        var r = findChatBubble(box);
+        if (r === 'keep') return;
+        var right = 20, bottom = 20;
+        if (r) {
+            right = Math.round(window.innerWidth - r.left + 14);
+            bottom = Math.round(window.innerHeight - (r.top + r.height / 2) - box.offsetHeight / 2);
+        }
+        if (box.style.right !== right + 'px') box.style.right = right + 'px';
+        if (box.style.bottom !== bottom + 'px') box.style.bottom = bottom + 'px';
+    }
+    window.addEventListener('resize', function () { positionBox(); });
 
     // ------------------------------------------------------------------
     // Tlačítko „Štítky“: klikne za vás na Zásilky → Tisknout štítky (Balíky)
@@ -1364,7 +1410,7 @@
     new MutationObserver(function () {
         if (pending) return;
         pending = true;
-        setTimeout(function () { pending = false; addButton(); highlightQuantities(); addBadge(); }, 300);
+        setTimeout(function () { pending = false; addButton(); positionBox(); highlightQuantities(); addBadge(); }, 300);
     }).observe(document.body, { childList: true, subtree: true });
 
     // pro ladění v konzoli
