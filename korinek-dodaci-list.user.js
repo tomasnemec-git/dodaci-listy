@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dodací list · Tomáš Němec
 // @namespace    https://pokorinek.cz/
-// @version      3.2.2
+// @version      3.3.0
 // @description  Zvýrazňuje množství nad 1 ks a tiskne čitelný dodací list (dopravce, velké názvy, kódy, množství, adresa) s náhledy produktů. Funguje v seznamu objednávek i v detailu objednávky.
 // @author       Tomáš Němec
 // @match        https://pokorinek.cz/admin/*
@@ -320,6 +320,14 @@
             '</div>';
     }
 
+    // „Položek: 3 · Kusů celkem: 7“ (doprava a platba se nepočítají)
+    function countText(o) {
+        var lines = o.items.length;
+        var pcs = o.items.reduce(function (a, it) { return a + (it.qtyNum || 0); }, 0);
+        pcs = Math.round(pcs * 100) / 100;
+        return 'Položek: <b>' + lines + '</b> · Kusů celkem: <b>' + String(pcs).replace('.', ',') + '</b>';
+    }
+
     function renderOrder(o, info) {
         if (o.error) {
             return '<section class="dl" data-no="ID ' + esc(o.id) + '"><h1>Objednávku (ID ' + esc(o.id) +
@@ -380,7 +388,10 @@
                 '<thead><tr><th></th><th>Položka</th><th>Množství</th><th>Cena</th></tr></thead>' +
                 '<tbody>' + rows + extras + '</tbody>' +
             '</table>' +
-            '<div class="total">K zaplacení: <b>' + esc(o.total) + '</b></div>' +
+            '<div class="total">' +
+                '<span class="count">' + countText(o) + '</span>' +
+                '<span>K zaplacení: <b>' + esc(o.total) + '</b></span>' +
+            '</div>' +
             '</section>';
     }
 
@@ -427,7 +438,8 @@
         '.warn { border: 2px solid #000; padding: 2mm 3mm; margin-top: 3mm; font-size: 11pt; font-weight: bold; }',
         'td.price { font-size: 9pt; white-space: nowrap; text-align: right; width: 24mm; }',
         'tr.extra td { font-size: 9pt; border-bottom: 0; padding-top: 0.8mm; padding-bottom: 0.8mm; }',
-        '.total { text-align: right; font-size: 14pt; margin-top: 3mm; }'
+        '.total { display: flex; justify-content: space-between; align-items: baseline; font-size: 14pt; margin-top: 3mm; }',
+        '.total .count { font-size: 11pt; }'
     ].join('\n');
 
     function buildHtml(orders, info) {
